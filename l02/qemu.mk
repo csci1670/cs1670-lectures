@@ -72,4 +72,4 @@ qemu-ws-gdb: qemu-ws
 # Stop all running qemu instances (to kill websocket version, or in case of issues)
 stop kill:
 	-killall -u $$(whoami) $(QEMU)
-	@sleep 0.2; if ps -U $$(whoami) | grep $(QEMU) >/dev/null; then killall -9 -u $$(whoami) $(QEMU)
+	@sleep 0.2; if ps -U $$(whoami) | grep $(QEMU) >/dev/null; then killall -9 -u $$(whoami) $(QEMU); fi

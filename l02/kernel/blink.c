@@ -1,26 +1,22 @@
 #include "types.h"
 #include "utils.h"
+#include "blink.h"
 
-// BCM2837 Physical GPIO Base Address for RPi 3
-#define GPIO_BASE 0x3F200000
+#define DEVICE_BASE 0x3F000000
 
 // Device MMIO Register Addresses -- TODO: find addresses!
-#define GPFSEL2 ((volatile uint32*)(GPIO_BASE + 0x0))
-#define GPSET0 ((volatile uint32*)(GPIO_BASE + 0x0))
-#define GPCLR0 ((volatile uint32*)(GPIO_BASE + 0x0))
-
-void setup();
+#define GPFSEL2 ((volatile uint32*)(DEVICE_BASE + 0x200008))
+#define GPSET0 ((volatile uint32*)(DEVICE_BASE + 0x20001c))
+#define GPCLR0 ((volatile uint32*)(DEVICE_BASE + 0x200028))
 
 void blink_main(void) {
   setup();
 
   while (true) {
-    // Set Pin HIGH (Write a 1 to bit 21 of GPSET0)
-    *GPSET0 |= (0b1 << 21);
+    *GPSET0 |= (0b1 << 21); // Write 1 to bit 21 of GPSET0, sets pin 21 HIGH
     delay_cycles(1500000);
 
-    // Set Pin LOW (Write a 1 to bit 21 of GPCLR0)
-    *GPCLR0 |= (0b1 << 21);
+    *GPCLR0 |= (0b1 << 21); // Write 1 to bit 21 of GPCLR0, sets pin 21 LOW
     delay_cycles(1500000);
   }
 }

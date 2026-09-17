@@ -222,7 +222,9 @@ static void print_pi(void) {
  */
 
 int pi_main(void) {
+  beep_init();
   compute_pi();
+  beep();
 
 #if PI_PRINT
   uart_init();
