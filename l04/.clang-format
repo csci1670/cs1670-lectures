@@ -1,0 +1,4 @@
+BasedOnStyle: google
+Standard: c++20
+IndentWidth: 2
+AllowShortFunctionsOnASingleLine: Empty
