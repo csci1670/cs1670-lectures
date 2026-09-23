@@ -9,6 +9,8 @@
  * formatted in a tabular form.
  */
 
+int global_var = 42;
+
 int main(void) {
   int n = 100;  // Number of squares to compute
   int p = 0;    // Previous square value

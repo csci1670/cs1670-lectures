@@ -15,7 +15,7 @@ processor0:
     sub x1, x1, x0
     bl memzero
     mov sp, 0x400000
-    bl pi_main
+    bl kernel_main
 
 loop:
     b loop

@@ -20,6 +20,9 @@
 #define PERIPHERALS_BASE 0x3F000000
 #define PERIPHERALS_LIMIT 0x3FFFFFFF
 
+// Define where processes go
+#define PROC_START 0xA0000
+
 // Trampoline to user-reachable functions (like yield or printf).
 // This is essentially an array of function pointers at a known location, so
 // that programs can use these functions as a library.
