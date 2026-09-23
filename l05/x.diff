@@ -1,0 +1,563 @@
+diff --git a/l04/kernel/boot.S b/l04/kernel/boot.S
+index 986e2c9..62bce96 100644
+--- a/l04/kernel/boot.S
++++ b/l04/kernel/boot.S
+@@ -15,7 +15,7 @@ processor0:
+     sub x1, x1, x0
+     bl memzero
+     mov sp, 0x400000
+-    bl pi_main
++    bl kernel_main
+ 
+ loop:
+     b loop
+diff --git a/l04/kernel/elf.c b/l04/kernel/elf.c
+index 8b13789..36d6414 100644
+--- a/l04/kernel/elf.c
++++ b/l04/kernel/elf.c
+@@ -1 +1,334 @@
++#include "elf.h"
+ 
++#include "printf.h"
++#include "utils.h"
++
++void print_elf_header(const struct elf_header* ehdr) {
++  printf("ELF header:\r\n");
++
++  // Print magic number
++  printf("\tMagic:\t\t\t");
++  for (int i = 0; i < EI_NIDENT; ++i) {
++    printf("%x ", ehdr->e_ident[i]);
++  }
++  printf("\r\n");
++
++  // Print class
++  printf("\tClass:\t\t\t");
++  switch (ehdr->e_ident[EI_CLASS]) {
++    case ELFCLASSNONE: {
++      printf("Invalid");
++      break;
++    }
++    case ELFCLASS32: {
++      printf("ELF32");
++      break;
++    }
++    case ELFCLASS64: {
++      printf("ELF64");
++      break;
++    }
++    default: {
++      printf("Unsupported");
++    }
++  }
++  printf("\r\n");
++
++  // Print Data
++  printf("\tData:\t\t\t");
++  switch (ehdr->e_ident[EI_DATA]) {
++    case ELFDATANONE: {
++      printf("Invalid");
++      break;
++    }
++    case ELFDATA2LSB: {
++      printf("Two's complement, little endian");
++      break;
++    }
++    case ELFDATA2MSB: {
++      printf("Two's complement, big endian");
++      break;
++    }
++    default: {
++      printf("Unsupported");
++    }
++  }
++  printf("\r\n");
++
++  // Print version
++  printf("\tVersion:\t\t");
++  switch (ehdr->e_ident[EI_VERSION]) {
++    case EV_NONE: {
++      printf("%c (invalid)", '0' + EV_NONE);
++      break;
++    }
++    case EV_CURRENT: {
++      printf("%c (current)", '0' + EV_CURRENT);
++      break;
++    }
++    default: {
++      printf("Unsupported");
++    }
++  }
++  printf("\r\n");
++
++  // Print type
++  printf("\tType:\t\t\t");
++  switch (ehdr->e_type) {
++    case ET_NONE: {
++      printf("No file type");
++      break;
++    }
++    case ET_REL: {
++      printf("REL (Relocatable file)");
++      break;
++    }
++    case ET_EXEC: {
++      printf("EXEC (Executable file)");
++      break;
++    }
++    case ET_DYN: {
++      printf("DYN (Shared object file)");
++      break;
++    }
++    case ET_CORE: {
++      printf("CORE (Core file)");
++      break;
++    }
++    case ET_LOPROC: {
++      printf("LOPROC (Processor-specific)");
++      break;
++    }
++    case ET_HIPROC: {
++      printf("HIPROC (Processor-specific)");
++      break;
++    }
++    default: {
++      printf("Unsupported");
++    }
++  }
++  printf("\r\n");
++
++  // Print machine
++  printf("\tMachine:\t\t");
++  switch (ehdr->e_machine) {
++    case ET_NONE: {
++      printf("No machine");
++      break;
++    }
++    case EM_M32: {
++      printf("AT&T WE 32100");
++      break;
++    }
++    case EM_SPARC: {
++      printf("SPARC");
++      break;
++    }
++    case EM_386: {
++      printf("Intel architecture");
++      break;
++    }
++    case EM_68K: {
++      printf("Motorola 68000");
++      break;
++    }
++    case EM_88K: {
++      printf("Motorola 88000");
++      break;
++    }
++    case EM_860: {
++      printf("Intel 80860");
++      break;
++    }
++    case EM_MIPS: {
++      printf("MIPS RS3000 Big-Endian");
++      break;
++    }
++    case EM_MIPS_RS4_BE: {
++      printf("MIPS RS4000 Big-Endian");
++      break;
++    }
++    case EM_AARCH64: {
++      printf("AArch64");
++      break;
++    }
++    default: {
++      printf("Reserved for future use");
++    }
++  }
++  printf("\r\n");
++
++  // Print entry
++  printf("\tEntry point address:\t%p\r\n", (uint64)ehdr->e_entry);
++
++  // Print program headers
++  printf("\nProgram headers:\r\n");
++  for (int i = 0, offset = ehdr->e_phoff; i < ehdr->e_phnum;
++       ++i, offset += sizeof(struct elf_prog_header)) {
++    print_elf_prog_header((struct elf_prog_header*)((char*)ehdr + offset));
++  }
++}
++
++void print_elf_prog_header(const struct elf_prog_header* ephdr) {
++  // Print segment type
++  switch (ephdr->p_type) {
++    case PT_NULL: {
++      printf("\t- Unused segment");
++      break;
++    }
++    case PT_LOAD: {
++      printf("\t- Loadable segment");
++      break;
++    }
++    case PT_DYNAMIC: {
++      printf("\t- Dynamic linking information segment");
++      break;
++    }
++    case PT_INTERP: {
++      printf("\t- Path name to an interpreter");
++      break;
++    }
++    case PT_NOTE: {
++      printf("\t- Auxiliary information segment");
++      break;
++    }
++    case PT_SHLIB: {
++      printf("\t- Unspecified segment");
++      break;
++    }
++    case PT_PHDR: {
++      printf("\t- Program header segment");
++      break;
++    }
++    case PT_LOPROC:
++    case PT_HIPROC: {
++      printf("\t- Processor-specific segment");
++      break;
++    }
++    default: {
++      printf("\t- Unsupported segment type");
++    }
++  }
++
++  printf(": ");
++
++  // Print offset + size
++  printf("%x -- %x (%d)\r\n", ephdr->p_offset,
++         ephdr->p_offset + ephdr->p_filesz, ephdr->p_filesz);
++}
++
++// Apply relocations present in the .dynamic section. Each relocation
++// refers to an address of a global variable or function in the
++// program.  For each address, we add the process' base address
++// (pa_start), so it points to the correct address after loading
++void apply_relocations(void* pa_start, struct elf_header* ehdr) {
++  for (int i = 0, offset = ehdr->e_phoff; i < ehdr->e_phnum;
++       ++i, offset += sizeof(struct elf_prog_header)) {
++    struct elf_prog_header* ph =
++        (struct elf_prog_header*)((char*)ehdr + offset);
++
++    if (ph->p_type != PT_DYNAMIC) {
++      continue;
++    }
++
++    // Walk the dynamic section to find the relocation table.
++    uint64 rela_vaddr = 0;
++    uint64 rela_size = 0;
++    for (struct elf_dyn* dyn = (struct elf_dyn*)((char*)pa_start + ph->p_vaddr);
++         dyn->d_tag != DT_NULL; dyn++) {
++      if (dyn->d_tag == DT_RELA) {
++        rela_vaddr = dyn->d_val;
++      } else if (dyn->d_tag == DT_RELASZ) {
++        rela_size = dyn->d_val;
++      }
++    }
++
++    if (rela_vaddr == 0 || rela_size == 0) break;
++
++    struct elf_rela* rela = (struct elf_rela*)((char*)pa_start + rela_vaddr);
++    int nrela = rela_size / sizeof(struct elf_rela);
++
++    for (int r = 0; r < nrela; r++) {
++      uint32 type = ELF_R_TYPE(rela[r].r_info);
++      if (type != R_AARCH64_RELATIVE) {
++        panic("Unsupported relocation type: %d", type);
++      }
++
++      // Modify the address given by this relocation
++      uint64* patch = (uint64*)((char*)pa_start + rela[r].r_offset);
++      *patch = (uint64)pa_start + rela[r].r_addend;
++    }
++
++    return;  // Stop processing after .dynamic section is found (there is only
++             // one)
++  }
++}
++
++void* load_elf(struct elf_header* ehdr, void* pa_start) {
++  // Parse ELF header
++  if (ehdr->e_ident[EI_MAG0] != ELFMAG0 || ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
++      ehdr->e_ident[EI_MAG2] != ELFMAG2 || ehdr->e_ident[EI_MAG3] != ELFMAG3) {
++    panic("Invalid ELF magic: %x %x %x %x", ehdr->e_ident[EI_MAG0],
++          ehdr->e_ident[EI_MAG1], ehdr->e_ident[EI_MAG2],
++          ehdr->e_ident[EI_MAG3]);
++  }
++
++  // Sanity checks
++  if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
++    panic("Not a ELF64");
++  }
++  if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB) {
++    panic("Unsupported endianess");
++  }
++  if (ehdr->e_machine != EM_AARCH64) {
++    panic("Machine is not AArch64");
++  };
++
++  // Load program headers in memory
++  bool found = false;
++  struct elf_prog_header* ph;
++
++  for (int i = 0, offset = ehdr->e_phoff; i < ehdr->e_phnum;
++       ++i, offset += sizeof(struct elf_prog_header)) {
++    ph = (struct elf_prog_header*)((char*)ehdr + offset);
++
++    // Only load loadable segments
++    if (ph->p_type != PT_LOAD) {
++      continue;
++    }
++
++    // Sanity checks
++    if (ph->p_memsz < ph->p_filesz)
++      panic("In program header: memsz < filesz\r\n");
++    if (ph->p_vaddr + ph->p_memsz < ph->p_vaddr)
++      panic("In program header: load would overflow");
++
++    found = true;
++
++    void* src = (char*)ehdr + ph->p_offset;
++    void* dest = pa_start + ph->p_vaddr;
++
++    memmove(dest, src, ph->p_filesz);
++
++    // Zero the BSS region, which is for data expected to be initialized to zero
++    // This is the portion of the segment that exists in memory
++    // (p_memsz) but not in the file (p_filesz).
++    if (ph->p_memsz > ph->p_filesz) {
++      memset((char*)dest + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
++    }
++  }
++
++  if (!found) {
++    panic("Could not find any PT_LOAD segment in ELF");
++  }
++
++  // Apply any relocations present in the ELF file.
++  // Relocations are used to adjust any addresses of global variables or
++  // functions so that they reflect the correct addresses of where the program
++  // is loaded into memory.
++  apply_relocations(pa_start, ehdr);
++
++  // return the entry point of the loaded ELF, adjusted by the physical address
++  // at which the process starts.
++  return (void*)((char*)ehdr->e_entry + (uint64)pa_start);
++}
+diff --git a/l04/kernel/elf.h b/l04/kernel/elf.h
+index 8b13789..ab259e0 100644
+--- a/l04/kernel/elf.h
++++ b/l04/kernel/elf.h
+@@ -1 +1,130 @@
++#ifndef __ELF_H
++#define __ELF_H
+ 
++#include "types.h"
++
++#define ELF_MAGIC 0x464C457FU  // '\x7F'.'E'.'L'.'F' (little endian)
++
++// E_IDENT related
++#define ELFMAG0 0x7f
++#define ELFMAG1 'E'
++#define ELFMAG2 'L'
++#define ELFMAG3 'F'
++
++enum eident {
++  EI_MAG0 = 0,
++  EI_MAG1 = 1,
++  EI_MAG2 = 2,
++  EI_MAG3 = 3,
++  EI_CLASS = 4,    // file format - 0: invalid, 1: 32 bit, 2: 64 bit
++  EI_DATA = 5,     // encoding - 0: inv, 1: little endian, 2: big endian
++  EI_VERSION = 6,  // header version
++  EI_PAD = 7,      // padding - reserved for future use
++  EI_NIDENT = 16   // size
++};
++
++enum ei_class { ELFCLASSNONE = 0, ELFCLASS32 = 1, ELFCLASS64 = 2 };
++
++enum ei_data { ELFDATANONE = 0, ELFDATA2LSB = 1, ELFDATA2MSB = 2 };
++
++enum ei_version { EV_NONE = 0, EV_CURRENT = 1 };
++
++enum e_type {
++  ET_NONE = 0,
++  ET_REL = 1,
++  ET_EXEC = 2,
++  ET_DYN = 3,
++  ET_CORE = 4,
++  ET_LOPROC = 0xff00,
++  ET_HIPROC = 0xffff
++};
++
++enum e_machine {
++  EM_M32 = 1,
++  EM_SPARC = 2,
++  EM_386 = 3,
++  EM_68K = 4,
++  EM_88K = 5,
++  EM_860 = 7,
++  EM_MIPS = 8,
++  EM_MIPS_RS4_BE = 10,
++  RESERVED,
++  EM_AARCH64 = 0xb7
++};
++
++struct elf_header {
++  uint8 e_ident[EI_NIDENT];  // identification number (see above)
++  uint16
++      e_type;  // object file (none, relocatable, executable, shared, core...)
++  uint16 e_machine;    // architecture (none, AT&T, SPARC, Intel, Motorola...)
++  uint32 e_version;    // object file version (0: invalid, 1: current)
++  uint64 e_entry;      // entry point (usually address of the _start symbol)
++  uint64 e_phoff;      // program header table's offset (in bytes)
++  uint64 e_shoff;      // section header table's offset (in bytes)
++  uint32 e_flags;      // processor-specific flags associated with the file
++  uint16 e_ehsize;     // ELF header's size (in bytes)
++  uint16 e_phentsize;  // Program header table entry size (in bytes)
++  uint16 e_phnum;      // Number of entries in the program header table
++  uint16 e_shentsize;  // Section header size (in bytes)
++  uint16 e_shnum;      // Number of entries in the section header table
++  uint16 e_shstrndx;   // Section header tbl id for e in section name string tbl
++};
++
++enum p_type {
++  PT_NULL = 0,
++  PT_LOAD = 1,
++  PT_DYNAMIC = 2,
++  PT_INTERP = 3,
++  PT_NOTE = 4,
++  PT_SHLIB = 5,
++  PT_PHDR = 6,
++  PT_LOPROC = 0x70000000,
++  PT_HIPROC = 0x7fffffff
++};
++
++struct elf_prog_header {
++  uint32 p_type;    // Segment described
++  uint32 p_flags;   // Segment-dependant flags (e.g.: R/W/E permissions)
++  uint64 p_offset;  // Offset of this segment from the beginning of the file
++  uint64 p_vaddr;   // VA at which the first byte of this seg is in memory
++  uint64 p_paddr;   // Segment PA (not always relevant)
++  uint64 p_filesz;  // Size (in bytes) of this segment in the file image
++  uint64 p_memsz;   // Size (in bytes) of this segment in memory
++  uint64 p_align;
++};
++
++// Dynamic section entry (found via PT_DYNAMIC program header)
++struct elf_dyn {
++  int64 d_tag;   // Entry type (DT_RELA, DT_RELASZ, etc.)
++  uint64 d_val;  // Integer or address value
++};
++
++// Dynamic section tags
++#define DT_NULL 0     // End of dynamic section
++#define DT_RELA 7     // Address of relocation table (with addends)
++#define DT_RELASZ 8   // Total size of the RELA relocation table (bytes)
++#define DT_RELAENT 9  // Size of each RELA relocation entry (bytes)
++
++// Relocation entry with addend (Elf64_Rela)
++struct elf_rela {
++  uint64 r_offset;  // Location to apply the relocation (vaddr)
++  uint64 r_info;    // Relocation type (low 32 bits) and symbol index (high 32)
++  int64 r_addend;   // Constant addend
++};
++
++// Extract the relocation type from r_info
++#define ELF_R_TYPE(info) ((uint32)((info) & 0xFFFFFFFF))
++
++// AArch64 relocation types
++#define R_AARCH64_RELATIVE 0x403  // Base-relative: *(offset) = base + addend
++
++// Helper functions to print the parsed ELF header and program headers (for
++// debugging)
++void print_elf_header(const struct elf_header*);
++void print_elf_prog_header(const struct elf_prog_header*);
++
++// Load an ELF executable (currently stored in memory at ehdr) into process
++// memory starting at the given physical address (pa_start).
++void* load_elf(struct elf_header* ehdr, void* pa_start);
++
++#endif  // __ELF_H
+diff --git a/l04/kernel/init.c b/l04/kernel/init.c
+index 9d043d9..00837f5 100644
+--- a/l04/kernel/init.c
++++ b/l04/kernel/init.c
+@@ -1,4 +1,23 @@
++#include "elf.h"
++#include "memlayout.h"
++#include "printf.h"
++
+ // Program entry points (given by the linker)
+ extern unsigned char _binary_user_squares_elf_start[];
+ extern unsigned char _binary_user_pi_elf_start[];
+ extern unsigned char _binary_user_primecheck_elf_start[];
++
++void run(void* executable, void* proc_address, char* name) {
++  printf("NOW RUNNING: %s\r\n", name);
++  void* entry_point = load_elf(executable, proc_address);
++
++  void (*f)(void) = (void (*)(void))entry_point;
++  f();
++}
++
++void init() {
++  run((void*)_binary_user_squares_elf_start, (void*)PROC_START, "SQUARES");
++  run((void*)_binary_user_pi_elf_start, (void*)PROC_START, "PI");
++  run((void*)_binary_user_primecheck_elf_start, (void*)PROC_START,
++      "PRIMECHECK");
++}
+diff --git a/l04/kernel/kernel.c b/l04/kernel/kernel.c
+index e69de29..19cfd53 100644
+--- a/l04/kernel/kernel.c
++++ b/l04/kernel/kernel.c
+@@ -0,0 +1,16 @@
++#include "drivers/uart.h"
++#include "init.h"
++#include "printf.h"
++
++void klib_init() {
++  *(int (**)(const char*, va_list))F_VPRINTF = vprintf_kernel;
++}
++
++void kernel_main() {
++  uart_init();
++  klib_init();
++
++  printf("Hello world from DemoOS!\r\n");
++
++  init();
++}
+diff --git a/l04/kernel/memlayout.h b/l04/kernel/memlayout.h
+index 855e660..cbb02c1 100644
+--- a/l04/kernel/memlayout.h
++++ b/l04/kernel/memlayout.h
+@@ -20,6 +20,9 @@
+ #define PERIPHERALS_BASE 0x3F000000
+ #define PERIPHERALS_LIMIT 0x3FFFFFFF
+ 
++// Define where processes go
++#define PROC_START 0xA0000
++
+ // Trampoline to user-reachable functions (like yield or printf).
+ // This is essentially an array of function pointers at a known location, so
+ // that programs can use these functions as a library.
+diff --git a/l04/user/squares.c b/l04/user/squares.c
+index 31b03a4..67b8815 100644
+--- a/l04/user/squares.c
++++ b/l04/user/squares.c
+@@ -9,6 +9,8 @@
+  * formatted in a tabular form.
+  */
+ 
++int global_var = 42;
++
+ int main(void) {
+   int n = 100;  // Number of squares to compute
+   int p = 0;    // Previous square value
